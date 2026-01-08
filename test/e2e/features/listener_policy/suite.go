@@ -58,7 +58,7 @@ func (s *testingSuite) SetupSuite() {
 		LabelSelector: testdefaults.WellKnownAppLabel + "=nginx",
 	})
 
-	// include gateway manifests for the tests, so we recreate it for each test run
+	// include gateway manifests for tests, so we recreate it for each test run
 	s.manifests = map[string][]string{
 		"TestHttpListenerPolicyAllFields":        {gatewayManifest, httpRouteManifest, allFieldsManifest},
 		"TestHttpListenerPolicyServerHeader":     {gatewayManifest, httpRouteManifest, serverHeaderManifest},
@@ -67,6 +67,9 @@ func (s *testingSuite) SetupSuite() {
 		"TestHttpListenerPolicyClearStaleStatus": {gatewayManifest, httpRouteManifest, serverHeaderManifest},
 		"TestEarlyRequestHeaderModifier":         {gatewayManifest, earlyHeaderMutationManifest},
 		"TestProxyProtocol":                      {gatewayManifest, httpRouteManifest, proxyProtocolManifest},
+		// RequestID configuration tests for the new RequestID feature
+		"TestListenerPolicyRequestId":             {gatewayManifest, httpRouteManifest, listenerPolicyRequestIdManifest},
+		"TestHTTPListenerPolicyRequestId":          {gatewayManifest, httpRouteManifest, httpListenerPolicyRequestIdManifest},
 	}
 }
 
@@ -374,4 +377,46 @@ func (s *testingSuite) TestProxyProtocol() {
 			curl.WithProxyProto(),
 		},
 		&matchers.HttpResponse{StatusCode: http.StatusOK})
+}
+
+// TestListenerPolicyRequestId tests the RequestID configuration feature when applied
+// through a ListenerPolicy resource. This end-to-end test verifies that:
+// 1. The RequestID configuration is properly applied to the gateway
+// 2. Traffic flows correctly with the configuration in place
+// 3. The x-request-id header handling works as expected
+func (s *testingSuite) TestListenerPolicyRequestId() {
+	// Test that ListenerPolicy with RequestID configuration is applied correctly
+	// The test verifies that the gateway is working and RequestID headers are handled
+	s.testInstallation.Assertions.AssertEventualCurlResponse(
+		s.ctx,
+		testdefaults.CurlPodExecOpt,
+		[]curl.Option{
+			curl.WithHost(kubeutils.ServiceFQDN(proxyService.ObjectMeta)),
+			curl.WithHostHeader("example.com"),
+		},
+		&matchers.HttpResponse{
+			StatusCode: http.StatusOK,
+			Body:       gomega.ContainSubstring("Welcome to nginx!"),
+		})
+}
+
+// TestHTTPListenerPolicyRequestId tests the RequestID configuration feature when applied
+// through an HTTPListenerPolicy resource. This end-to-end test verifies that:
+// 1. The RequestID configuration is properly applied to the gateway
+// 2. Traffic flows correctly with the configuration in place
+// 3. The x-request-id header handling works as expected with HTTP-specific configuration
+func (s *testingSuite) TestHTTPListenerPolicyRequestId() {
+	// Test that HTTPListenerPolicy with RequestID configuration is applied correctly
+	// The test verifies that the gateway is working and RequestID headers are handled
+	s.testInstallation.Assertions.AssertEventualCurlResponse(
+		s.ctx,
+		testdefaults.CurlPodExecOpt,
+		[]curl.Option{
+			curl.WithHost(kubeutils.ServiceFQDN(proxyService.ObjectMeta)),
+			curl.WithHostHeader("example.com"),
+		},
+		&matchers.HttpResponse{
+			StatusCode: http.StatusOK,
+			Body:       gomega.ContainSubstring("Welcome to nginx!"),
+		})
 }

@@ -23,6 +23,9 @@ var (
 	httpListenerPolicyMissingTargetManifest = filepath.Join(fsutils.MustGetThisDir(), "testdata", "listener-policy-missing-target.yaml")
 	earlyHeaderMutationManifest             = filepath.Join(fsutils.MustGetThisDir(), "testdata", "listener-policy-early-header-route-match.yaml")
 	proxyProtocolManifest                   = filepath.Join(fsutils.MustGetThisDir(), "testdata", "listener-policy-proxy-protocol.yaml")
+	// RequestID test manifests for testing the new RequestID configuration feature
+	listenerPolicyRequestIdManifest         = filepath.Join(fsutils.MustGetThisDir(), "testdata", "listener-policy-request-id.yaml")
+	httpListenerPolicyRequestIdManifest      = filepath.Join(fsutils.MustGetThisDir(), "testdata", "httplistener-policy-request-id.yaml")
 
 	// When we apply the setup file, we expect resources to be created with this metadata
 	proxyObjectMeta = metav1.ObjectMeta{

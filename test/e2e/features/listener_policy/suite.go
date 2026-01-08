@@ -68,8 +68,8 @@ func (s *testingSuite) SetupSuite() {
 		"TestEarlyRequestHeaderModifier":         {gatewayManifest, earlyHeaderMutationManifest},
 		"TestProxyProtocol":                      {gatewayManifest, httpRouteManifest, proxyProtocolManifest},
 		// RequestID configuration tests for the new RequestID feature
-		"TestListenerPolicyRequestId":             {gatewayManifest, httpRouteManifest, listenerPolicyRequestIdManifest},
-		"TestHTTPListenerPolicyRequestId":          {gatewayManifest, httpRouteManifest, httpListenerPolicyRequestIdManifest},
+		"TestListenerPolicyRequestId":     {gatewayManifest, httpRouteManifest, listenerPolicyRequestIdManifest},
+		"TestHTTPListenerPolicyRequestId": {gatewayManifest, httpRouteManifest, httpListenerPolicyRequestIdManifest},
 	}
 }
 

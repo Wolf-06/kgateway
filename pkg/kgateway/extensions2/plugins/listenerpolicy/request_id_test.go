@@ -27,7 +27,7 @@ func TestUuidRequestIdConfigConversion(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "empty config uses defaults",
+			name:   "empty config uses defaults",
 			config: &kgateway.UuidRequestIdConfig{},
 			expected: &envoyuuidv3.UuidRequestIdConfig{
 				PackTraceReason:              wrapperspb.Bool(true),
@@ -102,9 +102,9 @@ func TestHttpListenerPolicyIrEqualsRequestID(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "both nil",
-			ir1:  &HttpListenerPolicyIr{},
-			ir2:  &HttpListenerPolicyIr{},
+			name:     "both nil",
+			ir1:      &HttpListenerPolicyIr{},
+			ir2:      &HttpListenerPolicyIr{},
 			expected: true,
 		},
 		{

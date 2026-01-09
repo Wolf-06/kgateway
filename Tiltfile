@@ -17,7 +17,7 @@ if str(local("command -v " + helm_cmd + " || true", quiet = True)) == "":
 settings = {
     "helm_installation_name": "kgateway",
     "helm_installation_namespace": "kgateway-system",
-    "helm_values_files": ["./test/kubernetes/e2e/tests/manifests/common-recommendations.yaml"],
+    "helm_values_files": [],
 }
 
 tilt_file = "./tilt-settings.yaml" if os.path.exists("./tilt-settings.yaml") else "./tilt-settings.json"
@@ -57,7 +57,7 @@ RUN chmod 777 ./$binary_name
 standard_entrypoint = "ENTRYPOINT /app/start.sh /app/$binary_name"
 debug_entrypoint = "ENTRYPOINT /app/start.sh /go/bin/dlv --listen=0.0.0.0:$debug_port --api-version=2 --headless=true --only-same-user=false --accept-multiclient --check-go-version=false exec --continue /app/$binary_name"
 
-get_resources_cmd = "{0} -n {1} template {2} --include-crds install/helm/kgateway/ --set image.pullPolicy='Never' --set image.registry=ghcr.io/kgateway-dev --set image.tag='{3}'".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"), image_tag)
+get_resources_cmd = "{0} -n {1} template {2} --include-crds install/helm/kgateway/ --set image.pullPolicy='Never' --set image.registry=ghcr.io/kgateway-dev --set image.tag='{3}' --set controller.extraEnv.KGW_DISABLE_LEADER_ELECTION='true'".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"), image_tag)
 for f in settings.get("helm_values_files") :
     get_resources_cmd = get_resources_cmd + " --values=" + f
 
@@ -205,7 +205,7 @@ def install_kgateway():
         install_helm_cmd = """
             kubectl get crd gateways.gateway.networking.k8s.io &> /dev/null || {{ kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml; }} ;
             {0} upgrade --install -n {1} --create-namespace kgateway-crds install/helm/kgateway-crds ;
-            {0} upgrade --install -n {1} --create-namespace {2} install/helm/kgateway/ --set controller.image.pullPolicy='Never' --set image.registry=ghcr.io/kgateway-dev --set image.tag='{3}'""".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"), image_tag)
+            {0} upgrade --install -n {1} --create-namespace {2} install/helm/kgateway/ --set controller.image.pullPolicy='Never' --set image.registry=ghcr.io/kgateway-dev --set image.tag='{3}' --set controller.extraEnv.KGW_DISABLE_LEADER_ELECTION='true'""".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"), image_tag)
         for f in settings.get("helm_values_files") :
             install_helm_cmd = install_helm_cmd + " --values=" + f
         local_resource(

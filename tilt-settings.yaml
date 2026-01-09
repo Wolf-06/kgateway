@@ -1,7 +1,9 @@
 
 helm_installation_name: kgateway
-helm_values_files:
-- ./test/e2e/tests/manifests/common-recommendations.yaml
+helm_values_files: 
+  - /tmp/strict-mode.yaml
+# Users can add custom values files here if needed, e.g.:
+# - ./my-custom-values.yaml
 helm_installation_namespace: kgateway-system
 
 enabled_providers:

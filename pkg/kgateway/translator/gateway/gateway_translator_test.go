@@ -1206,6 +1206,39 @@ func TestBasic(t *testing.T) {
 		})
 	})
 
+	t.Run("HTTPListenerPolicy with uuidRequestIdConfig defaults", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "httplistenerpolicy/request-id-config-defaults.yaml",
+			outputFile: "httplistenerpolicy/request-id-config-defaults.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
+	t.Run("HTTPListenerPolicy with uuidRequestIdConfig explicit false", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "httplistenerpolicy/request-id-config-explicit.yaml",
+			outputFile: "httplistenerpolicy/request-id-config-explicit.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
+	t.Run("HTTPListenerPolicy with uuidRequestIdConfig mixed values", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "httplistenerpolicy/request-id-config-mixed.yaml",
+			outputFile: "httplistenerpolicy/request-id-config-mixed.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
 	t.Run("ListenerPolicy with upgrades", func(t *testing.T) {
 		test(t, translatorTestCase{
 			inputFile:  "https-listener-pol/upgrades.yaml",

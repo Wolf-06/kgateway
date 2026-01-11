@@ -68,8 +68,9 @@ func (s *testingSuite) SetupSuite() {
 		"TestEarlyRequestHeaderModifier":         {gatewayManifest, earlyHeaderMutationManifest},
 		"TestProxyProtocol":                      {gatewayManifest, httpRouteManifest, proxyProtocolManifest},
 		// RequestID configuration tests for the new RequestID feature
-		"TestListenerPolicyRequestId":     {gatewayManifest, httpRouteManifest, listenerPolicyRequestIdManifest},
-		"TestHTTPListenerPolicyRequestId": {gatewayManifest, httpRouteManifest, httpListenerPolicyRequestIdManifest},
+		// These tests use an echo server to verify x-request-id header behavior
+		"TestListenerPolicyRequestId":     {gatewayManifest, requestIdEchoManifest, listenerPolicyRequestIdManifest},
+		"TestHTTPListenerPolicyRequestId": {gatewayManifest, requestIdEchoManifest, httpListenerPolicyRequestIdManifest},
 	}
 }
 
@@ -383,10 +384,18 @@ func (s *testingSuite) TestProxyProtocol() {
 // through a ListenerPolicy resource. This end-to-end test verifies that:
 // 1. The RequestID configuration is properly applied to the gateway
 // 2. Traffic flows correctly with the configuration in place
-// 3. The x-request-id header handling works as expected
+// 3. The x-request-id header is generated with valid UUID format
 func (s *testingSuite) TestListenerPolicyRequestId() {
-	// Test that ListenerPolicy with RequestID configuration is applied correctly
-	// The test verifies that the gateway is working and RequestID headers are handled
+	// Wait for echo server to be ready
+	s.testInstallation.Assertions.EventuallyObjectsExist(s.ctx, requestIdEchoService, requestIdEchoDeployment)
+	s.testInstallation.Assertions.EventuallyPodsRunning(s.ctx, requestIdEchoDeployment.ObjectMeta.GetNamespace(), metav1.ListOptions{
+		LabelSelector: "app=request-id-echo",
+	})
+
+	// Verify x-request-id is generated with valid UUID format when not provided
+	// UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (8-4-4-4-12 lowercase hex digits)
+	// The echo server returns all request headers in the response body, allowing us to verify
+	// that Envoy properly generates the x-request-id header
 	s.testInstallation.Assertions.AssertEventualCurlResponse(
 		s.ctx,
 		testdefaults.CurlPodExecOpt,
@@ -396,7 +405,8 @@ func (s *testingSuite) TestListenerPolicyRequestId() {
 		},
 		&matchers.HttpResponse{
 			StatusCode: http.StatusOK,
-			Body:       gomega.ContainSubstring("Welcome to nginx!"),
+			// Verify x-request-id header was generated with valid UUID format
+			Body: gomega.MatchRegexp(`(?i)x-request-id: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`),
 		})
 }
 
@@ -404,10 +414,18 @@ func (s *testingSuite) TestListenerPolicyRequestId() {
 // through an HTTPListenerPolicy resource. This end-to-end test verifies that:
 // 1. The RequestID configuration is properly applied to the gateway
 // 2. Traffic flows correctly with the configuration in place
-// 3. The x-request-id header handling works as expected with HTTP-specific configuration
+// 3. The x-request-id header is generated with valid UUID format
 func (s *testingSuite) TestHTTPListenerPolicyRequestId() {
-	// Test that HTTPListenerPolicy with RequestID configuration is applied correctly
-	// The test verifies that the gateway is working and RequestID headers are handled
+	// Wait for echo server to be ready
+	s.testInstallation.Assertions.EventuallyObjectsExist(s.ctx, requestIdEchoService, requestIdEchoDeployment)
+	s.testInstallation.Assertions.EventuallyPodsRunning(s.ctx, requestIdEchoDeployment.ObjectMeta.GetNamespace(), metav1.ListOptions{
+		LabelSelector: "app=request-id-echo",
+	})
+
+	// Verify x-request-id is generated with valid UUID format when not provided
+	// UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (8-4-4-4-12 lowercase hex digits)
+	// The echo server returns all request headers in the response body, allowing us to verify
+	// that Envoy properly generates the x-request-id header
 	s.testInstallation.Assertions.AssertEventualCurlResponse(
 		s.ctx,
 		testdefaults.CurlPodExecOpt,
@@ -417,6 +435,7 @@ func (s *testingSuite) TestHTTPListenerPolicyRequestId() {
 		},
 		&matchers.HttpResponse{
 			StatusCode: http.StatusOK,
-			Body:       gomega.ContainSubstring("Welcome to nginx!"),
+			// Verify x-request-id header was generated with valid UUID format
+			Body: gomega.MatchRegexp(`(?i)x-request-id: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`),
 		})
 }

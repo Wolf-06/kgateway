@@ -37,7 +37,7 @@ Listeners:
           typedConfig:
             '@type': type.googleapis.com/envoy.extensions.request_id.uuid.v3.UuidRequestIdConfig
             packTraceReason: true
-            useRequestIdForTraceSampling: true
+            useRequestIdForTraceSampling: false
         statPrefix: http
         useRemoteAddress: true
     name: listener~80
@@ -45,7 +45,7 @@ Listeners:
     filterMetadata:
       merge.ListenerPolicy.gateway.kgateway.dev:
         default.httpSettings.uuidRequestIdConfig:
-        - gateway.kgateway.dev/ListenerPolicy/default/request-id-defaults
+        - gateway.kgateway.dev/ListenerPolicy/default/request-id-mixed
   name: listener~80
 Routes:
 - ignorePortInHostMatching: true
@@ -53,7 +53,7 @@ Routes:
     filterMetadata:
       merge.ListenerPolicy.gateway.kgateway.dev:
         default.httpSettings.uuidRequestIdConfig:
-        - gateway.kgateway.dev/ListenerPolicy/default/request-id-defaults
+        - gateway.kgateway.dev/ListenerPolicy/default/request-id-mixed
   name: listener~80
   virtualHosts:
   - domains:
@@ -134,7 +134,7 @@ Statuses:
           kind: ""
           name: example-gateway
   policies:
-    ListenerPolicy/default/request-id-defaults:
+    ListenerPolicy/default/request-id-mixed:
       ancestors:
       - ancestorRef:
           group: gateway.networking.k8s.io

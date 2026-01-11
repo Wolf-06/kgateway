@@ -33,12 +33,27 @@ Listeners:
             ads: {}
             resourceApiVersion: V3
           routeConfigName: listener~80
+        requestIdExtension:
+          typedConfig:
+            '@type': type.googleapis.com/envoy.extensions.request_id.uuid.v3.UuidRequestIdConfig
+            packTraceReason: false
+            useRequestIdForTraceSampling: false
         statPrefix: http
         useRemoteAddress: true
     name: listener~80
+  metadata:
+    filterMetadata:
+      merge.HTTPListenerPolicy.gateway.kgateway.dev:
+        uuidRequestIdConfig:
+        - gateway.kgateway.dev/HTTPListenerPolicy/default/request-id-explicit
   name: listener~80
 Routes:
 - ignorePortInHostMatching: true
+  metadata:
+    filterMetadata:
+      merge.HTTPListenerPolicy.gateway.kgateway.dev:
+        uuidRequestIdConfig:
+        - gateway.kgateway.dev/HTTPListenerPolicy/default/request-id-explicit
   name: listener~80
   virtualHosts:
   - domains:

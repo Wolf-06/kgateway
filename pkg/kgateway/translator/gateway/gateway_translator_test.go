@@ -1382,6 +1382,39 @@ func TestBasic(t *testing.T) {
 		})
 	})
 
+	t.Run("ListenerPolicy with uuidRequestIdConfig explicit false", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "listener-policy-http/request-id-config-explicit.yaml",
+			outputFile: "listener-policy-http/request-id-config-explicit.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
+	t.Run("ListenerPolicy with uuidRequestIdConfig defaults", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "listener-policy-http/request-id-config-defaults.yaml",
+			outputFile: "listener-policy-http/request-id-config-defaults.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
+	t.Run("ListenerPolicy with uuidRequestIdConfig mixed values", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "listener-policy-http/request-id-config-mixed.yaml",
+			outputFile: "listener-policy-http/request-id-config-mixed.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
 	t.Run("Service with appProtocol=kubernetes.io/h2c", func(t *testing.T) {
 		test(t, translatorTestCase{
 			inputFile:  "backend-protocol/svc-h2c.yaml",

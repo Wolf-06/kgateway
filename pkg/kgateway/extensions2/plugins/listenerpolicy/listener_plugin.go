@@ -110,13 +110,10 @@ func (d listenerPolicy) Equals(d2 listenerPolicy) bool {
 		return false
 	}
 
-	if d.http == nil && d2.http == nil {
-		return true
-	}
-	if d.http == nil || d2.http == nil {
+	if (d.http == nil) != (d2.http == nil) {
 		return false
 	}
-	if !d.http.Equals(d2.http) {
+	if d.http != nil && !d.http.Equals(d2.http) {
 		return false
 	}
 

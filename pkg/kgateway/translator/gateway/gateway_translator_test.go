@@ -9,6 +9,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
+	// Register the UuidRequestIdConfig proto type so that it can be unmarshaled from Any in tests
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/request_id/uuid/v3"
+
 	apisettings "github.com/kgateway-dev/kgateway/v2/api/settings"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/fsutils"
 	translatortest "github.com/kgateway-dev/kgateway/v2/test/translator"

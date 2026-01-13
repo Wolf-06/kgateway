@@ -26,11 +26,13 @@ providers:
     # The service name
     label: kgateway
     # Command to build the binary
-    #build_binary: GCFLAGS='all="-N -l"' make -B kgateway
+    #build_binary: make -B kgateway GCFLAGS="all=-N -l" LDFLAGS=""
     build_binary:  make -B kgateway
     # Name of the binary file when built
     binary_name: kgateway-linux-$ARCH
-    # Custom Dockerfile with Envoy binary for strict validation mode
+    # Custom Dockerfile with Envoy binary for strict validation mode.
+    # NOTE: Do NOT include ENTRYPOINT here - the Tiltfile will append the correct
+    # entrypoint (standard or debug) based on whether debug_port is set.
     dockerfile_contents: |
       FROM quay.io/solo-io/envoy-gloo:1.36.3-patch1 as envoy-bin
 
@@ -44,8 +46,7 @@ providers:
       COPY --from=envoy-bin /usr/local/bin/envoy /usr/local/bin/envoy
       COPY $binary_name .
       RUN chmod 777 ./$binary_name
-      ENTRYPOINT /app/start.sh /app/$binary_name
-    # To enable debugging, just add the `debug_port` param to a provider (provided it supports debugging)
+    # To enable debugging with strict validation, uncomment both debug_port and port 50100
     #debug_port: 50100
     links:
       - http://localhost:9092/metrics

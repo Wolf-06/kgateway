@@ -57,11 +57,18 @@ RUN chmod 777 ./$binary_name
 standard_entrypoint = "ENTRYPOINT /app/start.sh /app/$binary_name"
 debug_entrypoint = "ENTRYPOINT /app/start.sh /go/bin/dlv --listen=0.0.0.0:$debug_port --api-version=2 --headless=true --only-same-user=false --accept-multiclient --check-go-version=false exec --continue /app/$binary_name"
 
+def _shell_escape_single_quotes(value):
+    """Escape a value for safe inclusion in a single-quoted shell string.
+    In POSIX shells, a single quote inside a single-quoted string is represented as: '"'"'
+    """
+    return str(value).replace("'", "'\"'\"'")
+
 get_resources_cmd = "{0} -n {1} template {2} --include-crds install/helm/kgateway/ --set image.pullPolicy='Never' --set image.registry=ghcr.io/kgateway-dev --set image.tag='{3}' --set controller.extraEnv.KGW_DISABLE_LEADER_ELECTION='true'".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"), image_tag)
 for f in settings.get("helm_values_files") :
     get_resources_cmd = get_resources_cmd + " --values=" + f
 for key, value in settings.get("helm_sets", {}).items() :
-    get_resources_cmd = get_resources_cmd + " --set {0}='{1}'".format(key, value)
+    escaped_value = _shell_escape_single_quotes(value)
+    get_resources_cmd = get_resources_cmd + " --set {0}='{1}'".format(key, escaped_value)
 
 arch = str(local("make print-GOARCH", quiet = True)).strip()
 
@@ -106,10 +113,12 @@ def build_docker_image(provider):
             tilt_helper_dockerfile,
             tilt_dockerfile,
         ])
-        if provider.get("debug_port") :
-            dockerfile_contents = dockerfile_contents + debug_entrypoint
-        else :
-            dockerfile_contents = dockerfile_contents + standard_entrypoint
+    
+    # Append the appropriate entrypoint based on whether debug_port is set
+    if provider.get("debug_port") :
+        dockerfile_contents = dockerfile_contents + debug_entrypoint
+    else :
+        dockerfile_contents = dockerfile_contents + standard_entrypoint
 
     dockerfile_contents = dockerfile_contents.replace("$binary_name", provider.get("binary_name"))
     dockerfile_contents = dockerfile_contents.replace("$debug_port", str(provider.get("debug_port")))
@@ -211,7 +220,8 @@ def install_kgateway():
         for f in settings.get("helm_values_files") :
             install_helm_cmd = install_helm_cmd + " --values=" + f
         for key, value in settings.get("helm_sets", {}).items() :
-            install_helm_cmd = install_helm_cmd + " --set {0}='{1}'".format(key, value)
+            escaped_value = _shell_escape_single_quotes(value)
+            install_helm_cmd = install_helm_cmd + " --set {0}='{1}'".format(key, escaped_value)
         local_resource(
             name = settings.get("helm_installation_name") + "_helm",
             cmd = ["bash", "-c", install_helm_cmd],

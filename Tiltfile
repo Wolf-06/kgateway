@@ -60,6 +60,8 @@ debug_entrypoint = "ENTRYPOINT /app/start.sh /go/bin/dlv --listen=0.0.0.0:$debug
 get_resources_cmd = "{0} -n {1} template {2} --include-crds install/helm/kgateway/ --set image.pullPolicy='Never' --set image.registry=ghcr.io/kgateway-dev --set image.tag='{3}' --set controller.extraEnv.KGW_DISABLE_LEADER_ELECTION='true'".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"), image_tag)
 for f in settings.get("helm_values_files") :
     get_resources_cmd = get_resources_cmd + " --values=" + f
+for key, value in settings.get("helm_sets", {}).items() :
+    get_resources_cmd = get_resources_cmd + " --set {0}='{1}'".format(key, value)
 
 arch = str(local("make print-GOARCH", quiet = True)).strip()
 
@@ -208,6 +210,8 @@ def install_kgateway():
             {0} upgrade --install -n {1} --create-namespace {2} install/helm/kgateway/ --set controller.image.pullPolicy='Never' --set image.registry=ghcr.io/kgateway-dev --set image.tag='{3}' --set controller.extraEnv.KGW_DISABLE_LEADER_ELECTION='true'""".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"), image_tag)
         for f in settings.get("helm_values_files") :
             install_helm_cmd = install_helm_cmd + " --values=" + f
+        for key, value in settings.get("helm_sets", {}).items() :
+            install_helm_cmd = install_helm_cmd + " --set {0}='{1}'".format(key, value)
         local_resource(
             name = settings.get("helm_installation_name") + "_helm",
             cmd = ["bash", "-c", install_helm_cmd],

@@ -3,6 +3,10 @@ helm_values_files: []
   # - ./my-custom-values.yaml
 helm_installation_namespace: kgateway-system
 
+# Inline Helm --set flags (key: value format)
+helm_sets: {}
+  # Example: controller.extraEnv.KGW_VALIDATION_MODE: "strict"
+
 enabled_providers:
   - kgateway
 
@@ -26,8 +30,21 @@ providers:
     build_binary:  make -B kgateway
     # Name of the binary file when built
     binary_name: kgateway-linux-$ARCH
-    # A custom docker file. This might be required when the base image is different or managing an external project such as envoy
-    #dockerfile_contents: ...
+    # Custom Dockerfile with Envoy binary for strict validation mode
+    dockerfile_contents: |
+      FROM quay.io/solo-io/envoy-gloo:1.36.3-patch1 as envoy-bin
+
+      FROM golang:latest as tilt
+      WORKDIR /app
+      COPY --from=tilt-helper /go/bin/dlv /go/bin/dlv
+      COPY --from=tilt-helper /process.txt .
+      COPY --from=tilt-helper /start.sh .
+      COPY --from=tilt-helper /restart.sh .
+      # Copy envoy binary for strict validation
+      COPY --from=envoy-bin /usr/local/bin/envoy /usr/local/bin/envoy
+      COPY $binary_name .
+      RUN chmod 777 ./$binary_name
+      ENTRYPOINT /app/start.sh /app/$binary_name
     # To enable debugging, just add the `debug_port` param to a provider (provided it supports debugging)
     #debug_port: 50100
     links:

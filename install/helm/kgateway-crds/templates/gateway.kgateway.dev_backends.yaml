@@ -213,14 +213,15 @@ spec:
                 - hosts
                 type: object
               type:
-                description: Type indicates the type of the backend to be used.
+                description: |-
+                  Type indicates the type of the backend to be used.
+                  Deprecated: The Type field is deprecated and will be removed in a future release.
+                  The backend type is inferred from the configuration.
                 enum:
                 - AWS
                 - Static
                 - DynamicForwardProxy
                 type: string
-            required:
-            - type
             type: object
             x-kubernetes-validations:
             - message: aws backend must be specified when type is 'AWS'

@@ -203,6 +203,13 @@ golden-deployer:  ## Refreshes golden files for ./test/deployer snapshot testing
 	@echo "This must pass after refreshing:"
 	go test ./test/deployer/...
 
+.PHONY: golden-helm
+golden-helm:  ## Refreshes golden files for ./test/helm snapshot testing
+	REFRESH_GOLDEN=true go test ./test/helm/... > /dev/null || true
+	@echo ""
+	@echo "This must pass after refreshing:"
+	go test ./test/helm/...
+
 #----------------------------------------------------------------------------------
 # Env test
 #----------------------------------------------------------------------------------
@@ -276,7 +283,7 @@ view-test-coverage:
 	go tool cover -html $(OUTPUT_DIR)/cover.out
 
 #----------------------------------------------------------------------------------
-# Clean
+# MARK: Clean
 #----------------------------------------------------------------------------------
 
 # Important to clean before pushing new releases. Dockerfiles and binaries may not update properly
@@ -304,7 +311,7 @@ clean-bug-report:
 	rm -rf $(BUG_REPORT_DIR)
 
 #----------------------------------------------------------------------------------
-# Generated Code
+# MARK: Generated Code
 #----------------------------------------------------------------------------------
 # This section uses stamp files to optimize 'make generate-all' by tracking dependencies.
 #
@@ -706,11 +713,12 @@ release-notes: ## Generate release notes (PREVIOUS_TAG required, CURRENT_TAG opt
 	./hack/generate-release-notes.sh -p $(PREVIOUS_TAG) -c $(or $(CURRENT_TAG),HEAD)
 
 #----------------------------------------------------------------------------------
-# Development
+# MARK: Development
 #----------------------------------------------------------------------------------
 
 KIND ?= go tool kind
 CLUSTER_NAME ?= kind
+# TODO: This should probably change depending on if kgateway or agw is installed
 INSTALL_NAMESPACE ?= kgateway-system
 
 # The version of the Node Docker image to use for booting the kind cluster: https://hub.docker.com/r/kindest/node/tags
@@ -748,6 +756,8 @@ deploy-agentgateway: package-agentgateway-charts deploy-agentgateway-crd-chart d
 .PHONY: setup-base
 setup-base: kind-create gw-api-crds gie-crds metallb ## Setup the base infrastructure (kind cluster, CRDs, and MetalLB)
 
+# Creates a functional kind cluster, builds and loads all images, and packages charts
+# Does NOT deploy anything to the cluster
 .PHONY: setup
 setup: setup-base kind-build-and-load package-kgateway-charts package-agentgateway-charts dummy-idp-docker kind-load-dummy-idp  ## Setup the complete infrastructure (base setup plus images and charts)
 
@@ -837,6 +847,7 @@ run-load-tests-production: ## Run production load tests (5000 routes)
 	go test -tags=e2e -v ./test/e2e/tests -run "^TestKgateway$$/^AttachedRoutes$$/^TestAttachedRoutesProduction$$"
 
 #----------------------------------------------------------------------------------
+# MARK: Conformance
 # Targets for running Kubernetes Gateway API conformance tests
 #----------------------------------------------------------------------------------
 

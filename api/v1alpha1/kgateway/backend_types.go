@@ -48,8 +48,10 @@ const (
 type BackendSpec struct {
 	// Type indicates the type of the backend to be used.
 	// +kubebuilder:validation:Enum=AWS;Static;DynamicForwardProxy
-	// +required
-	Type BackendType `json:"type"`
+	// Deprecated: The Type field is deprecated and will be removed in a future release.
+	// The backend type is inferred from the configuration.
+	// +optional
+	Type *BackendType `json:"type,omitempty"`
 	// Aws is the AWS backend configuration.
 	// The Aws backend type is only supported with envoy-based gateways, it is not supported in agentgateway.
 	// +optional

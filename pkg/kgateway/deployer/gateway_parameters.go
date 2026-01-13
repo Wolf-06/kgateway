@@ -121,7 +121,7 @@ func (gp *GatewayParameters) GetCacheSyncHandlers() []cache.InformerSynced {
 // It applies AgentgatewayParameters overlays to the rendered objects.
 // When both GatewayClass and Gateway have AgentgatewayParameters, the overlays
 // are applied in order: GatewayClass first, then Gateway on top.
-func (gp *GatewayParameters) PostProcessObjects(ctx context.Context, obj client.Object, rendered []client.Object) error {
+func (gp *GatewayParameters) PostProcessObjects(ctx context.Context, obj client.Object, rendered []client.Object) ([]client.Object, error) {
 	// Check if override implements ObjectPostProcessor and delegate to it
 	if gp.helmValuesGeneratorOverride != nil {
 		if postProcessor, ok := gp.helmValuesGeneratorOverride.(deployer.ObjectPostProcessor); ok {
@@ -132,30 +132,32 @@ func (gp *GatewayParameters) PostProcessObjects(ctx context.Context, obj client.
 	// Fall back to default implementation
 	gw, ok := obj.(*gwv1.Gateway)
 	if !ok || gp.agwHelmValuesGenerator == nil {
-		return nil
+		return rendered, nil
 	}
 
 	resolved, err := gp.agwHelmValuesGenerator.GetResolvedParametersForGateway(gw)
 	if err != nil {
-		return nil
+		return rendered, nil
 	}
 
 	// Apply overlays in order: GatewayClass first, then Gateway.
 	// This allows Gateway-level overlays to override GatewayClass-level overlays.
 	if resolved.gatewayClassAGWP != nil {
 		applier := NewAgentgatewayParametersApplier(resolved.gatewayClassAGWP)
-		if err := applier.ApplyOverlaysToObjects(rendered); err != nil {
-			return err
+		rendered, err = applier.ApplyOverlaysToObjects(rendered)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if resolved.gatewayAGWP != nil {
 		applier := NewAgentgatewayParametersApplier(resolved.gatewayAGWP)
-		if err := applier.ApplyOverlaysToObjects(rendered); err != nil {
-			return err
+		rendered, err = applier.ApplyOverlaysToObjects(rendered)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return rendered, nil
 }
 
 func GatewayReleaseNameAndNamespace(obj client.Object) (string, string) {
@@ -301,21 +303,12 @@ func (k *kgatewayParameters) getGatewayParametersForGateway(gw *gwv1.Gateway) (*
 
 	mergedGwp := defaultGwp
 	if ptr.Deref(gwp.Spec.Kube.GetOmitDefaultSecurityContext(), false) {
-		// Need to regenerate defaults with OmitDefaultSecurityContext=true
-		gwc, err := getGatewayClassFromGateway(k.gwClassClient, gw)
-		if err != nil {
-			return nil, err
-		}
-		mergedGwp, err = deployer.GetInMemoryGatewayParameters(deployer.InMemoryGatewayParametersConfig{
-			ControllerName:             string(gwc.Spec.ControllerName),
-			ClassName:                  gwc.GetName(),
-			ImageInfo:                  k.inputs.ImageInfo,
-			WaypointClassName:          k.inputs.WaypointGatewayClassName,
-			AgwControllerName:          k.inputs.AgentgatewayControllerName,
-			OmitDefaultSecurityContext: true,
-		})
-		if err != nil {
-			return nil, err
+		// Clear the security context from the defaults to match the behavior of
+		// GetInMemoryGatewayParameters with OmitDefaultSecurityContext=true.
+		// This preserves GatewayClass params (like replicas) while still honoring
+		// the Gateway's omitDefaultSecurityContext setting.
+		if mergedGwp.Spec.Kube != nil && mergedGwp.Spec.Kube.EnvoyContainer != nil {
+			mergedGwp.Spec.Kube.EnvoyContainer.SecurityContext = nil
 		}
 	}
 	deployer.DeepMergeGatewayParameters(mergedGwp, gwp)

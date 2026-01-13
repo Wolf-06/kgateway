@@ -242,6 +242,60 @@ func translateFrontendTLS(policy *agentgateway.AgentgatewayPolicy, name string, 
 		spec.Alpn = &api.Alpn{Protocols: *tls.AlpnProtocols}
 	}
 
+	if tls.MaxTLSVersion != nil {
+		switch *tls.MaxTLSVersion {
+		case agentgateway.TLSVersion1_2:
+			spec.MaxVersion = ptr.Of(api.TLSConfig_TLS_V1_2)
+		case agentgateway.TLSVersion1_3:
+			spec.MaxVersion = ptr.Of(api.TLSConfig_TLS_V1_3)
+		default:
+			logger.Warn("unknown tls version for max", "version", tls.MaxTLSVersion)
+			spec.MaxVersion = nil
+		}
+	}
+
+	if tls.MinTLSVersion != nil {
+		switch *tls.MinTLSVersion {
+		case agentgateway.TLSVersion1_2:
+			spec.MinVersion = ptr.Of(api.TLSConfig_TLS_V1_2)
+		case agentgateway.TLSVersion1_3:
+			spec.MinVersion = ptr.Of(api.TLSConfig_TLS_V1_3)
+		default:
+			logger.Warn("unknown tls version for min", "version", tls.MinTLSVersion)
+			spec.MinVersion = nil
+		}
+	}
+
+	var agwCipherSuites []api.TLSConfig_CipherSuite
+	for _, cs := range tls.CipherSuites {
+		switch cs {
+		case agentgateway.CipherSuiteTLS13_AES_256_GCM_SHA384:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_AES_256_GCM_SHA384)
+		case agentgateway.CipherSuiteTLS13_AES_128_GCM_SHA256:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_AES_128_GCM_SHA256)
+		case agentgateway.CipherSuiteTLS13_CHACHA20_POLY1305_SHA256:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_CHACHA20_POLY1305_SHA256)
+		case agentgateway.CipherSuiteTLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384)
+		case agentgateway.CipherSuiteTLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
+		case agentgateway.CipherSuiteTLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256)
+		case agentgateway.CipherSuiteTLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+		case agentgateway.CipherSuiteTLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+		case agentgateway.CipherSuiteTLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+			agwCipherSuites = append(agwCipherSuites, api.TLSConfig_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
+		default:
+			logger.Warn("unknown tls cipher suite", "cipher_suite", cs)
+			continue
+		}
+	}
+	if len(agwCipherSuites) > 0 {
+		spec.CipherSuites = agwCipherSuites
+	}
+
 	tlsPolicy := &api.Policy{
 		Key:    name + frontendTlsPolicySuffix + attachmentName(target),
 		Name:   TypedResourceName(wellknown.AgentgatewayPolicyGVK.Kind, policy),

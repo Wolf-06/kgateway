@@ -144,6 +144,18 @@ type HTTPSettings struct {
 	// +optional
 	UseRemoteAddress *bool `json:"useRemoteAddress,omitempty"`
 
+	// PreserveExternalRequestId determines whether the connection manager will keep the x-request-id header if passed for
+	// a request that is edge (Edge request is the request from external clients to front Envoy) and not reset it, which is the current Envoy behaviour. This defaults to false.
+	// See here for more information https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto#envoy-v3-api-field-extensions-filters-network-http-connection-manager-v3-httpconnectionmanager-preserve-external-request-id
+	// +optional
+	PreserveExternalRequestId *bool `json:"preserveExternalRequestId,omitempty"`
+
+	// GenerateRequestId:  Whether the connection manager will generate the x-request-id header if it does not exist.
+	// This defaults to true. Generating a random UUID4 is expensive so in high throughput scenarios where this feature is not desired it can be disabled.
+	// See here for more information https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto#envoy-v3-api-field-extensions-filters-network-http-connection-manager-v3-httpconnectionmanager-generate-request-id
+	// +optional
+	GenerateRequestId *bool `json:"generateRequestId,omitempty"`
+
 	// XffNumTrustedHops is the number of additional ingress proxy hops from the right side of the X-Forwarded-For HTTP header to trust when determining the origin client's IP address.
 	// See here for more information: https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto#envoy-v3-api-field-extensions-filters-network-http-connection-manager-v3-httpconnectionmanager-xff-num-trusted-hops
 	// +kubebuilder:validation:Minimum=0

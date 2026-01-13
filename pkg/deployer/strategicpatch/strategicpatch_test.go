@@ -29,9 +29,9 @@ func TestOverlayApplier_ApplyOverlays_NilParams(t *testing.T) {
 		},
 	}
 
-	err := applier.ApplyOverlays(objs)
+	result, err := applier.ApplyOverlays(objs)
 	require.NoError(t, err)
-	assert.Len(t, objs, 1)
+	assert.Len(t, result, 1)
 }
 
 func TestOverlayApplier_ApplyOverlays_MetadataLabels(t *testing.T) {
@@ -64,7 +64,7 @@ func TestOverlayApplier_ApplyOverlays_MetadataLabels(t *testing.T) {
 	}
 	objs := []client.Object{deployment}
 
-	err := applier.ApplyOverlays(objs)
+	objs, err := applier.ApplyOverlays(objs)
 	require.NoError(t, err)
 
 	result := objs[0].(*appsv1.Deployment)
@@ -99,7 +99,7 @@ func TestOverlayApplier_ApplyOverlays_MetadataAnnotations(t *testing.T) {
 	}
 	objs := []client.Object{svc}
 
-	err := applier.ApplyOverlays(objs)
+	objs, err := applier.ApplyOverlays(objs)
 	require.NoError(t, err)
 
 	result := objs[0].(*corev1.Service)
@@ -159,7 +159,7 @@ func TestOverlayApplier_ApplyOverlays_DeploymentSpec(t *testing.T) {
 	}
 	objs := []client.Object{deployment}
 
-	err := applier.ApplyOverlays(objs)
+	objs, err := applier.ApplyOverlays(objs)
 	require.NoError(t, err)
 
 	result := objs[0].(*appsv1.Deployment)
@@ -220,7 +220,7 @@ func TestOverlayApplier_ApplyOverlays_DeleteContainerWithPatchDirective(t *testi
 	}
 	objs := []client.Object{deployment}
 
-	err := applier.ApplyOverlays(objs)
+	objs, err := applier.ApplyOverlays(objs)
 	require.NoError(t, err)
 
 	result := objs[0].(*appsv1.Deployment)
@@ -258,7 +258,7 @@ func TestOverlayApplier_ApplyOverlays_ServiceSpec(t *testing.T) {
 	}
 	objs := []client.Object{svc}
 
-	err := applier.ApplyOverlays(objs)
+	objs, err := applier.ApplyOverlays(objs)
 	require.NoError(t, err)
 
 	result := objs[0].(*corev1.Service)
@@ -308,7 +308,7 @@ func TestOverlayApplier_ApplyOverlays_MultipleObjects(t *testing.T) {
 		},
 	}
 
-	err := applier.ApplyOverlays(objs)
+	objs, err := applier.ApplyOverlays(objs)
 	require.NoError(t, err)
 
 	// Check deployment

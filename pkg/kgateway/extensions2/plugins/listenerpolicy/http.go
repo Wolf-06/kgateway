@@ -36,6 +36,8 @@ type HttpListenerPolicyIr struct {
 	idleTimeout                *time.Duration
 	healthCheckPolicy          *healthcheckv3.HealthCheck
 	preserveHttp1HeaderCase    *bool
+	preserveExternalRequestId  *bool
+	generateRequestId          *bool
 	// For a better UX, we set the default serviceName for access logs to the envoy cluster name (`<gateway-name>.<gateway-namespace>`).
 	// Since the gateway name can only be determined during translation, the access log configs and policies
 	// are stored so that during translation, the default serviceName is set if not already provided
@@ -90,6 +92,14 @@ func (d *HttpListenerPolicyIr) Equals(in any) bool {
 
 	// Check useRemoteAddress
 	if !cmputils.PointerValsEqual(d.useRemoteAddress, d2.useRemoteAddress) {
+		return false
+	}
+
+	if !cmputils.PointerValsEqual(d.preserveExternalRequestId, d2.preserveExternalRequestId) {
+		return false
+	}
+
+	if !cmputils.PointerValsEqual(d.generateRequestId, d2.generateRequestId) {
 		return false
 	}
 
@@ -217,6 +227,8 @@ func NewHttpListenerPolicy(krtctx krt.HandlerContext, commoncol *collections.Com
 		tracingConfig:                 tracingConfig,
 		upgradeConfigs:                upgradeConfigs,
 		useRemoteAddress:              h.UseRemoteAddress,
+		preserveExternalRequestId:     h.PreserveExternalRequestId,
+		generateRequestId:             h.GenerateRequestId,
 		xffNumTrustedHops:             xffNumTrustedHops,
 		serverHeaderTransformation:    serverHeaderTransformation,
 		streamIdleTimeout:             streamIdleTimeout,

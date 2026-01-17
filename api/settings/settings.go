@@ -163,8 +163,8 @@ type Settings struct {
 	XdsAuth bool `split_words:"true" default:"true"`
 
 	// XdsTLS enables or disables TLS encryption for xDS communication between the data-plane and control-plane.
-	// By default, this is disabled.
-	XdsTLS bool `split_words:"true" default:"false"`
+	// By default, this is enabled.
+	XdsTLS bool `split_words:"true" default:"true"`
 
 	// AgentgatewayXdsServicePort is the port of the Kubernetes Service that serves xDS config for agentgateway.
 	// This corresponds to the value of the `grpc-xds-agw` port in the service.

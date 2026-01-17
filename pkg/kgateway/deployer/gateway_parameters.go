@@ -2,6 +2,8 @@ package deployer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -536,7 +538,14 @@ func (k *kgatewayParameters) getValues(gw *gwv1.Gateway, gwParam *kgateway.Gatew
 	// serviceaccount values
 	gateway.ServiceAccount = deployer.GetServiceAccountValues(svcAccountConfig)
 	// pod template values
-	gateway.ExtraPodAnnotations = podConfig.GetExtraAnnotations()
+	// Inject xDS config hash annotation to trigger Gateway restarts when xDS config changes
+	extraPodAnnotations := podConfig.GetExtraAnnotations()
+	if extraPodAnnotations == nil {
+		extraPodAnnotations = make(map[string]string)
+	}
+	xdsConfigHash := computeXdsConfigHash(k.inputs.ControlPlane)
+	extraPodAnnotations["kgateway.io/xds-config-hash"] = xdsConfigHash
+	gateway.ExtraPodAnnotations = extraPodAnnotations
 	gateway.ExtraPodLabels = podConfig.GetExtraLabels()
 	gateway.ImagePullSecrets = podConfig.GetImagePullSecrets()
 	gateway.PodSecurityContext = podConfig.GetSecurityContext()
@@ -665,4 +674,15 @@ func translateInfraMeta[K ~string, V ~string](meta map[K]V) map[string]string {
 		infra[string(k)] = string(v)
 	}
 	return infra
+}
+
+// computeXdsConfigHash computes a hash of xDS-related configuration that should trigger
+// Gateway pod restarts when changed. This enables automatic rolling restarts when
+// control plane xDS configuration (like TLS settings) change.
+func computeXdsConfigHash(cp deployer.ControlPlaneInfo) string {
+	// Include only fields that require a Gateway restart when changed
+	data := fmt.Sprintf("%s:%d:%t", cp.XdsHost, cp.XdsPort, cp.XdsTLS)
+	hash := sha256.Sum256([]byte(data))
+	// Use first 8 chars of the hash for brevity
+	return hex.EncodeToString(hash[:])[:8]
 }

@@ -33,10 +33,10 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/deployer"
 	"github.com/kgateway-dev/kgateway/v2/pkg/kgateway/admin"
 	"github.com/kgateway-dev/kgateway/v2/pkg/kgateway/agentgatewaysyncer"
+	certmanager "github.com/kgateway-dev/kgateway/v2/pkg/kgateway/cert_manager"
 	"github.com/kgateway-dev/kgateway/v2/pkg/kgateway/controller"
 	"github.com/kgateway-dev/kgateway/v2/pkg/kgateway/proxy_syncer"
 	"github.com/kgateway-dev/kgateway/v2/pkg/kgateway/wellknown"
-	"github.com/kgateway-dev/kgateway/v2/pkg/kgateway/xds"
 	"github.com/kgateway-dev/kgateway/v2/pkg/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
 	"github.com/kgateway-dev/kgateway/v2/pkg/metrics"
@@ -375,12 +375,31 @@ func (s *setup) Start(ctx context.Context) error {
 		NewKubeJWTAuthenticator(s.apiClient.Kube()),
 	}
 
+	//If TLS in enabled, ensure the secret exists (generate if missing)
+	var certPaths *certmanager.CertPaths
+	if s.globalSettings.XdsTLS {
+		certData, keyData, err := certmanager.EnsureCertificateSecret(ctx, s.apiClient, s.globalSettings.XdsServiceName)
+		if err != nil {
+			return err
+		}
+
+		// Initialize certificates from API data
+		certPaths, err = certmanager.InitializeCertificates(certData, keyData)
+		if err != nil {
+			return err
+		}
+
+		// Start background syncer for rotation support
+		certmanager.StartVolumeSyncer(ctx, certPaths)
+	}
+
 	// Create shared certificate watcher if TLS is enabled. This watcher is used by both the xDS server
 	// and the Gateway controller to kick reconciliation on cert changes.
 	var certWatcher *certwatcher.CertWatcher
 	if s.globalSettings.XdsTLS {
 		var err error
-		certWatcher, err = certwatcher.New(xds.TLSCertPath, xds.TLSKeyPath)
+		// Watch the TEMP path, which is populated immediately by API fetch and later updated by Volume Syncer
+		certWatcher, err = certwatcher.New(certPaths.CertPath, certPaths.KeyPath)
 		if err != nil {
 			return err
 		}

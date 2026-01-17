@@ -24,7 +24,7 @@ package kgateway
 // Proxy deployer resources that require extra permissions
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;patch;update;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;patch;update;delete
-// +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts,verbs=get;list;watch;create;patch;update;delete
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;patch;delete
 
 // EDS discovery resources

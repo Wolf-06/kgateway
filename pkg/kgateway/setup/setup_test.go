@@ -179,7 +179,6 @@ func TestWithStandardSettings(t *testing.T) {
 	}
 	st.XdsTLS = false
 	runScenario(t, "testdata/standard", st)
-	st.XdsTLS = false
 }
 
 func TestWithExperimentalFeaturesSettings(t *testing.T) {

@@ -116,7 +116,7 @@ controller:
   # -- Configure TLS settings for the xDS gRPC servers.
   xds:
     tls:
-      # -- Enable TLS encryption for xDS communication. When enabled, both the main xDS server (port 9977) and agent gateway xDS server (port 9978) will use TLS. When TLS is enabled, you must create a Secret named 'kgateway-xds-cert' in the kgateway installation namespace. The Secret must be of type 'kubernetes.io/tls' with 'tls.crt', 'tls.key', and 'ca.crt' data fields present.
+      # -- Enable TLS encryption for xDS communication. When enabled, both the main xDS server (port 9977) and agent gateway xDS server (port 9978) will use TLS. When TLS is enabled, the controller will automatically create a Secret named 'kgateway-xds-cert' in the kgateway installation namespace if it does not already exist. The Secret is of type 'kubernetes.io/tls' with 'tls.crt', 'tls.key', and 'ca.crt' data fields; you may optionally create and manage this Secret yourself.
       # By default, this is enabled. To disable TLS, set this to false.
       enabled: true
   # -- Change the rollout strategy from the Kubernetes default of a RollingUpdate with 25% maxUnavailable, 25% maxSurge.

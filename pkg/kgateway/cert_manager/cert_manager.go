@@ -161,6 +161,9 @@ func generateCA() (certPEM, keyPEM []byte, err error) {
 func generateServerCert(caCertPEM, caKeyPEM []byte, serviceName, namespace string) (certPEM, keyPEM []byte, err error) {
 	//parse CA
 	caBlock, _ := pem.Decode(caCertPEM)
+	if caBlock == nil {
+		return nil, nil, fmt.Errorf("failed to decode CA certificate PEM")
+	}
 	caCert, err := x509.ParseCertificate(caBlock.Bytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse CA certificate: %w", err)
@@ -197,7 +200,7 @@ func generateServerCert(caCertPEM, caKeyPEM []byte, serviceName, namespace strin
 
 	certDER, err := x509.CreateCertificate(rand.Reader, template, caCert, &privateKey.PublicKey, caKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
@@ -222,7 +225,7 @@ type CertPaths struct {
 // InitializeCertificates writes the provided cert/key to the temp directory and returns the paths.
 // This is used to bootstrap TLS before the volume mount is available.
 func InitializeCertificates(certData, keyData []byte) (*CertPaths, error) {
-	if err := os.MkdirAll(TempDir, 0755); err != nil {
+	if err := os.MkdirAll(TempDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create temp dir for xDS TLS: %w", err)
 	}
 

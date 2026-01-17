@@ -221,6 +221,13 @@ func mergeRustFormationActionListJson(action string, obj1, obj2 map[string]any) 
 	}
 }
 
+func mergeRustFormationActionBody(obj1, obj2 map[string]any) {
+	body2, ok := obj2["body"].(any)
+	if ok {
+		obj1["body"] = body2
+	}
+}
+
 func mergeRustFormationRequestResponseJson(field string, m1, m2 map[string]any) {
 	obj1, ok1 := m1[field].(map[string]any)
 	obj2, ok2 := m2[field].(map[string]any)
@@ -232,6 +239,8 @@ func mergeRustFormationRequestResponseJson(field string, m1, m2 map[string]any) 
 		mergeRustFormationActionListJson("add", obj1, obj2)
 		mergeRustFormationActionListJson("remove", obj1, obj2)
 		mergeRustFormationActionListJson("set", obj1, obj2)
+
+		mergeRustFormationActionBody(obj1, obj2)
 	}
 }
 
@@ -286,7 +295,6 @@ func mergeRustformation(
 				PerRouteConfigName: "http_simple_mutations",
 				FilterConfig:       filterCfg,
 			}}
-
 		}
 		p1Json, err := utils.AnyToJson(p1.spec.rustformation.config.FilterConfig)
 		if err != nil {
@@ -306,19 +314,19 @@ func mergeRustformation(
 			return
 		} else {
 			if opts.Strategy == policy.OverridableDeepMerge {
-				err = mergeRustformationJsonInPlace(p2Json, p1Json)
-				if err != nil {
-					logger.Error("failed to merge json", "error", err.Error())
-					return
-				}
-				anyMsg, err = utils.JsonToAny(p2Json)
-			} else {
 				err = mergeRustformationJsonInPlace(p1Json, p2Json)
 				if err != nil {
 					logger.Error("failed to merge json", "error", err.Error())
 					return
 				}
 				anyMsg, err = utils.JsonToAny(p1Json)
+			} else {
+				err = mergeRustformationJsonInPlace(p2Json, p1Json)
+				if err != nil {
+					logger.Error("failed to merge json", "error", err.Error())
+					return
+				}
+				anyMsg, err = utils.JsonToAny(p2Json)
 			}
 		}
 

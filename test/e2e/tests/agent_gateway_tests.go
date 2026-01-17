@@ -20,6 +20,7 @@ import (
 	local_rate_limit "github.com/kgateway-dev/kgateway/v2/test/e2e/features/agentgateway/rate_limit/local"
 	"github.com/kgateway-dev/kgateway/v2/test/e2e/features/agentgateway/rbac"
 	"github.com/kgateway-dev/kgateway/v2/test/e2e/features/agentgateway/remotejwtauth"
+	"github.com/kgateway-dev/kgateway/v2/test/e2e/features/agentgateway/tracing"
 	"github.com/kgateway-dev/kgateway/v2/test/e2e/features/agentgateway/transformation"
 )
 
@@ -37,6 +38,7 @@ func AgentgatewaySuiteRunner() e2e.SuiteRunner {
 	agentgatewaySuiteRunner.Register("AIBackend", aibackend.NewTestingSuite)
 	agentgatewaySuiteRunner.Register("ConfigMap", configmap.NewTestingSuite) // redeploys by need
 	agentgatewaySuiteRunner.Register("RemoteJwtAuth", remotejwtauth.NewTestingSuite)
+	agentgatewaySuiteRunner.Register("Tracing", tracing.NewTestingSuite)
 
 	// Fast tests
 	agentgatewaySuiteRunner.Register("CSRF", csrf.NewTestingSuite)

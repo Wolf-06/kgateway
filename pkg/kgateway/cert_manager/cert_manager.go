@@ -1,6 +1,7 @@
 package certmanager
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -170,6 +171,9 @@ func generateServerCert(caCertPEM, caKeyPEM []byte, serviceName, namespace strin
 	}
 
 	caKeyBlock, _ := pem.Decode(caKeyPEM)
+	if caKeyBlock == nil {
+		return nil, nil, fmt.Errorf("failed to decode CA private key PEM")
+	}
 	caKey, err := x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse CA private key: %w", err)
@@ -209,7 +213,7 @@ func generateServerCert(caCertPEM, caKeyPEM []byte, serviceName, namespace strin
 
 const (
 	// TempDir is the directory where certificates are written for the application to use
-	TempDir = "/tmp/kgateway-xds-tls"
+	TempDir = "/var/run/kgateway/xds-tls"
 	// VolumeMountPath is where Kubernetes mounts the secret volume
 	VolumeMountPath = "/etc/xds-tls"
 	// SyncInterval is how often to check for volume updates
@@ -292,7 +296,7 @@ func copyFileIfChanged(src, dst string) error {
 
 	// Check if destination exists and has same content
 	if destData, err := os.ReadFile(dst); err == nil {
-		if string(sourceData) == string(destData) {
+		if bytes.Equal(sourceData, destData) {
 			return nil // No change needed
 		}
 	}

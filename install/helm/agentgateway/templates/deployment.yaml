@@ -123,12 +123,16 @@ spec:
             - name: xds-tls
               mountPath: /etc/xds-tls
               readOnly: true
+            - name: xds-tls-temp
+              mountPath: /var/run/kgateway/xds-tls
           {{- end }}
       {{- if .Values.controller.xds.tls.enabled }}
       volumes:
         - name: xds-tls
           secret:
             secretName: agentgateway-xds-cert
+        - name: xds-tls-temp
+          emptyDir: {}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

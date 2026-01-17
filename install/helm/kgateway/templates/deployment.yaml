@@ -120,10 +120,8 @@ spec:
             - name: KGW_ENABLE_WAYPOINT
               value: "true"
             {{- end }}
-            {{- if .Values.controller.xds.tls.enabled }}
-            - name: KGW_XDS_TLS_ENABLED
-              value: "true"
-            {{- end }}
+            - name: KGW_XDS_TLS
+              value: {{ .Values.controller.xds.tls.enabled | quote }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -141,6 +139,7 @@ spec:
         - name: xds-tls
           secret:
             secretName: kgateway-xds-cert
+            optional: true
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

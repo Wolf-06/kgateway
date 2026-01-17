@@ -49,7 +49,7 @@ func allEnvVarsSet() map[string]string {
 		"KGW_GATEWAY_CLASS_PARAMETERS_REFS":            `{"kgateway":{"name":"custom-gwp","namespace":"infra"},"agentgateway":{"name":"custom-gwp-agw","namespace":"infra"}}`,
 		"KGW_ENABLE_WAYPOINT":                          "true",
 		"KGW_XDS_AUTH":                                 "false",
-		"KGW_XDS_TLS":                                  "true",
+		"KGW_XDS_TLS":                                  "false",
 		"KGW_ENABLE_EXPERIMENTAL_GATEWAY_API_FEATURES": "false",
 	}
 }
@@ -102,7 +102,7 @@ func TestSettings(t *testing.T) {
 				PolicyMerge:                          "{}",
 				EnableWaypoint:                       false,
 				XdsAuth:                              true,
-				XdsTLS:                               false,
+				XdsTLS:                               true,
 				EnableExperimentalGatewayAPIFeatures: true,
 				GatewayClassParametersRefs:           GatewayClassParametersRefs{},
 			},
@@ -141,7 +141,7 @@ func TestSettings(t *testing.T) {
 				PolicyMerge:                          `{"TrafficPolicy":{"extProc":"DeepMerge"}}`,
 				EnableWaypoint:                       true,
 				XdsAuth:                              false,
-				XdsTLS:                               true,
+				XdsTLS:                               false,
 				EnableExperimentalGatewayAPIFeatures: false,
 				GatewayClassParametersRefs: GatewayClassParametersRefs{
 					"kgateway": {
@@ -232,7 +232,7 @@ func TestSettings(t *testing.T) {
 				ValidationMode:                       ValidationStandard,
 				PolicyMerge:                          "{}",
 				XdsAuth:                              true,
-				XdsTLS:                               false,
+				XdsTLS:                               true,
 				EnableExperimentalGatewayAPIFeatures: true,
 				GatewayClassParametersRefs:           GatewayClassParametersRefs{},
 			},

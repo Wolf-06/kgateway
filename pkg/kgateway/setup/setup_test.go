@@ -144,6 +144,7 @@ func TestServiceEntry(t *testing.T) {
 		t.Fatalf("can't get settings %v", err)
 	}
 	st.EnableIstioIntegration = true
+	st.XdsTLS = false
 
 	// these exercise applying a DR to a ServiceEntry
 	runScenario(t, "testdata/serviceentry/dr", st)
@@ -152,6 +153,7 @@ func TestServiceEntry(t *testing.T) {
 func TestDestinationRule(t *testing.T) {
 	st, err := envtestutil.BuildSettings()
 	st.EnableIstioIntegration = true
+	st.XdsTLS = false
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -163,6 +165,7 @@ func TestTrafficDistribution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
+	st.XdsTLS = false
 	st.EnableIstioIntegration = true
 
 	// these exercise applying a DR to a ServiceEntry
@@ -174,12 +177,15 @@ func TestWithStandardSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
+	st.XdsTLS = false
 	runScenario(t, "testdata/standard", st)
+	st.XdsTLS = false
 }
 
 func TestWithExperimentalFeaturesSettings(t *testing.T) {
 	st, err := envtestutil.BuildSettings()
 	st.EnableExperimentalGatewayAPIFeatures = true
+	st.XdsTLS = false
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -190,6 +196,7 @@ func TestWithIstioAutomtlsSettings(t *testing.T) {
 	st, err := envtestutil.BuildSettings()
 	st.EnableIstioIntegration = true
 	st.EnableIstioAutoMtls = true
+	st.XdsTLS = false
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -199,6 +206,7 @@ func TestWithIstioAutomtlsSettings(t *testing.T) {
 func TestWithBindIpv6(t *testing.T) {
 	st, err := envtestutil.BuildSettings()
 	st.ListenerBindIpv6 = true
+	st.XdsTLS = false
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -208,6 +216,7 @@ func TestWithBindIpv6(t *testing.T) {
 func TestWithBindIpv4(t *testing.T) {
 	st, err := envtestutil.BuildSettings()
 	st.ListenerBindIpv6 = false
+	st.XdsTLS = false
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -219,6 +228,7 @@ func TestWithAutoDns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
+	st.XdsTLS = false
 	st.DnsLookupFamily = apisettings.DnsLookupFamilyAuto
 
 	runScenario(t, "testdata/autodns", st)
@@ -229,6 +239,7 @@ func TestPolicyUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
+	st.XdsTLS = false
 	setupEnvTestAndRun(t, st, func(t *testing.T, ctx context.Context, kdbg *krt.DebugHandler, client istiokube.CLIClient, xdsPort, _ int) {
 		client.Kube().CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "gwtest"}}, metav1.CreateOptions{})
 
@@ -327,6 +338,7 @@ func TestServiceAppProtocolUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
+	st.XdsTLS = false
 	setupEnvTestAndRun(t, st, func(t *testing.T, ctx context.Context, kdbg *krt.DebugHandler, client istiokube.CLIClient, xdsPort, _ int) {
 		client.Kube().CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "gwtest"}}, metav1.CreateOptions{})
 

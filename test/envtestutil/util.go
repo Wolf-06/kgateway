@@ -14,6 +14,7 @@ import (
 	"istio.io/istio/pkg/kube/krt"
 	"istio.io/istio/pkg/kube/kubetypes"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -94,6 +95,15 @@ func RunController(
 		t.Fatalf("failed to init kube client: %v", err)
 	}
 	istiokube.EnableCrdWatcher(client)
+
+	// Ensure the kgateway-system namespace exists, as the controller expects it for xDS TLS secret creation
+	if _, err := client.Kube().CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kgateway-system",
+		},
+	}, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+		t.Fatalf("failed to create kgateway-system namespace: %v", err)
+	}
 
 	var extraPlugins func(ctx context.Context, commoncol *collections.CommonCollections, mergeSettingsJSON string) []pluginsdk.Plugin
 	if postStart != nil {

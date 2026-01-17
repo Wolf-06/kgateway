@@ -296,6 +296,7 @@ spec:
   template:
     metadata:
       annotations:
+        kgateway.io/xds-config-hash: 743d6466
         prometheus.io/path: /metrics
         prometheus.io/port: "9091"
         prometheus.io/scrape: "true"

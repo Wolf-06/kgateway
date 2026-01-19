@@ -1,7 +1,9 @@
 helm_installation_name: kgateway
-helm_values_files:
-  - ./test/e2e/tests/manifests/common-recommendations.yaml
+
+# Add your custom helm value files here
+helm_values_files: []
   # - ./my-custom-values.yaml
+
 helm_installation_namespace: kgateway-system
 
 # Inline Helm --set flags (key: value format)
@@ -27,7 +29,7 @@ providers:
     # The service name
     label: kgateway
     # Command to build the binary
-    # NOTE: If you want to build the binary with debug symbols, uncomment the following line and comment out the next line.
+    # NOTE: If you want to build the binary with debugging enabled, uncomment the following line and comment out the next line.
     #build_binary: make -B kgateway GCFLAGS="all=-N -l" LDFLAGS=""
     build_binary:  make -B kgateway
     # Name of the binary file when built

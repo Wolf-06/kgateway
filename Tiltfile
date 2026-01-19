@@ -18,14 +18,25 @@ settings = {
     "helm_installation_name": "kgateway",
     "helm_installation_namespace": "kgateway-system",
     "helm_values_files": ["./test/e2e/tests/manifests/common-recommendations.yaml"],
-    "helm_flags": {},
+    "helm_flags": {
+        "image.pullPolicy": "Never",
+        "image.registry": "ghcr.io/kgateway-dev",
+        "image.tag": image_tag,
+        "controller.extraEnv.KGW_DISABLE_LEADER_ELECTION": "true",
+    },
 }
 
 tilt_file = "./tilt-settings.yaml" if os.path.exists("./tilt-settings.yaml") else "./tilt-settings.json"
-settings.update((read_yaml(
-    tilt_file,
-    default = {},
-)))
+user_settings = read_yaml(tilt_file, default = {})
+if "helm_flags" in user_settings:
+    settings["helm_flags"].update(user_settings["helm_flags"])
+    user_settings.pop("helm_flags")
+
+if "helm_values_files" in user_settings:
+    settings["helm_values_files"].extend(user_settings["helm_values_files"] or [])
+    user_settings.pop("helm_values_files")
+
+settings.update(user_settings)
 
 kgateway_installed_cmd = "{0} -n {1} status {2} || true".format(helm_cmd, settings.get("helm_installation_namespace"), settings.get("helm_installation_name"))
 kgateway_status = str(local(kgateway_installed_cmd, quiet = True))
@@ -64,21 +75,13 @@ def _shell_escape_single_quotes(value):
     """
     return str(value).replace("'", "'\"'\"'")
 
-# Define default sets and merge with user settings
-helm_flags = {
-    "image.pullPolicy": "Never",
-    "image.registry": "ghcr.io/kgateway-dev",
-    "image.tag": image_tag,
-    "controller.extraEnv.KGW_DISABLE_LEADER_ELECTION": "true",
-}
-helm_flags.update(settings.get("helm_flags", {}))
 
 # Build common Helm arguments
 helm_args = ""
 for f in settings.get("helm_values_files"):
     helm_args = helm_args + " --values=" + f
 
-for key, value in helm_flags.items():
+for key, value in settings["helm_flags"].items():
     escaped_value = _shell_escape_single_quotes(value)
     helm_args = helm_args + " --set {0}='{1}'".format(key, escaped_value)
 

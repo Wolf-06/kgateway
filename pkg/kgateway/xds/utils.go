@@ -34,10 +34,12 @@ const (
 	TLSSecretName = "kgateway-xds-cert" //nolint:gosec // G101: This is a well-known xDS TLS secret name, not a credential
 
 	// TLSCertPath is the path to the TLS certificate
-	TLSCertPath = "/etc/xds-tls/tls.crt"
+	// Using /tmp for non-root user compatibility
+	TLSCertPath = "/tmp/kgateway-xds-tls/tls.crt"
 
 	// TLSKeyPath is the path to the TLS key
-	TLSKeyPath = "/etc/xds-tls/tls.key"
+	// Using /tmp for non-root user compatibility
+	TLSKeyPath = "/tmp/kgateway-xds-tls/tls.key"
 
 	// TLSRootCAPath is the path to the TLS root CA
 	TLSRootCAPath = "/etc/xds-tls/ca.crt"

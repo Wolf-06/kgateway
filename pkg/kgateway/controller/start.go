@@ -204,7 +204,7 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 			setupLog.Error(err, "unable to add statusSyncer runnable")
 			return nil, err
 		}
-		if err := cfg.Manager.Add(bootstrap.NewController(cfg.Client)); err != nil {
+		if err := cfg.Manager.Add(bootstrap.NewController(cfg.Client, cfg.SetupOpts.GlobalSettings.XdsServiceName)); err != nil {
 			setupLog.Error(err, "unable to add bootstrap controller runnable")
 			return nil, err
 		}

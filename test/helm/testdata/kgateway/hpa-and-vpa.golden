@@ -355,7 +355,7 @@ spec:
               mountPath: /etc/xds-tls
               readOnly: true
             - name: xds-tls-temp
-              mountPath: /var/run/kgateway/xds-tls
+              mountPath: /tmp/kgateway-xds-tls
       volumes:
         - name: xds-tls
           secret:

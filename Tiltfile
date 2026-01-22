@@ -28,10 +28,14 @@ settings = {
 
 tilt_file = "./tilt-settings.yaml" if os.path.exists("./tilt-settings.yaml") else "./tilt-settings.json"
 user_settings = read_yaml(tilt_file, default = {})
+# Manually merge helm_flags to allow users to override specific flags
+# without losing the defaults defined above (e.g. image registry).
 if "helm_flags" in user_settings:
     settings["helm_flags"].update(user_settings["helm_flags"])
     user_settings.pop("helm_flags")
 
+# Append user-provided values files to the default list (e.g. common-recommendations.yaml)
+# so that both sets of values are applied.
 if "helm_values_files" in user_settings:
     settings["helm_values_files"].extend(user_settings["helm_values_files"] or [])
     user_settings.pop("helm_values_files")

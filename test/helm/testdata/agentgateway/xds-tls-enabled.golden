@@ -326,7 +326,7 @@ spec:
               value: "true"
             - name: KGW_ENABLE_ENVOY
               value: "false"
-            - name: KGW_XDS_TLS_ENABLED
+            - name: KGW_XDS_TLS
               value: "true"
             - name: KGW_GATEWAY_CLASS_PARAMETERS_REFS
               value: "{}"
@@ -341,10 +341,11 @@ spec:
               mountPath: /etc/xds-tls
               readOnly: true
             - name: xds-tls-temp
-              mountPath: /var/run/kgateway/xds-tls
+              mountPath: /tmp/kgateway-xds-tls
       volumes:
         - name: xds-tls
           secret:
             secretName: agentgateway-xds-cert
+            optional: true
         - name: xds-tls-temp
           emptyDir: {}

@@ -375,31 +375,13 @@ func (s *setup) Start(ctx context.Context) error {
 		NewKubeJWTAuthenticator(s.apiClient.Kube()),
 	}
 
-	//If TLS in enabled, ensure the secret exists (generate if missing)
-	var certPaths *certmanager.CertPaths
-	if s.globalSettings.XdsTLS {
-		certData, keyData, err := certmanager.EnsureCertificateSecret(ctx, s.apiClient, s.globalSettings.XdsServiceName)
-		if err != nil {
-			return err
-		}
-
-		// Initialize certificates from API data
-		certPaths, err = certmanager.InitializeCertificates(certData, keyData)
-		if err != nil {
-			return err
-		}
-
-		// Start background syncer for rotation support
-		certmanager.StartVolumeSyncer(ctx, certPaths)
-	}
-
 	// Create shared certificate watcher if TLS is enabled. This watcher is used by both the xDS server
 	// and the Gateway controller to kick reconciliation on cert changes.
 	var certWatcher *certwatcher.CertWatcher
 	if s.globalSettings.XdsTLS {
+		// Use the bootstrap wrapper to ensure certificates exist before watching
 		var err error
-		// Watch the TEMP path, which is populated immediately by API fetch and later updated by Volume Syncer
-		certWatcher, err = certwatcher.New(certPaths.CertPath, certPaths.KeyPath)
+		certWatcher, err = certmanager.NewCertWatcherWithBootstrap(ctx, s.apiClient, s.globalSettings.XdsServiceName)
 		if err != nil {
 			return err
 		}

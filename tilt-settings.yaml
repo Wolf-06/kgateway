@@ -1,8 +1,9 @@
 helm_installation_name: kgateway
 
 # Add your custom helm value files here
-helm_values_files: []
-  # - ./my-custom-values.yaml
+helm_values_files:
+  - ./test/e2e/tests/manifests/common-recommendations.yaml
+  
 
 helm_installation_namespace: kgateway-system
 

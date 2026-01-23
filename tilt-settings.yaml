@@ -78,6 +78,9 @@ providers:
       - pkg
       - internal
     label: agentgateway
+    # Command to build the binary
+    # NOTE: If you want to build the binary with debugging enabled, uncomment the following line and comment out the next line.
+    #build_binary: make -B kgateway GCFLAGS="all=-N -l" LDFLAGS=""
     build_binary: make -B kgateway
     binary_name: kgateway-linux-$ARCH
     debug_port: 50101

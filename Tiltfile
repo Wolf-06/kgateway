@@ -85,6 +85,9 @@ helm_args = ""
 for f in settings.get("helm_values_files"):
     helm_args = helm_args + " --values=" + f
 
+for f in settings.get("kgateway_values_files", []):
+    helm_args = helm_args + " --values=" + f
+
 for key, value in settings["helm_flags"].items():
     escaped_value = _shell_escape_single_quotes(value)
     helm_args = helm_args + " --set {0}='{1}'".format(key, escaped_value)
@@ -107,8 +110,30 @@ def get_deployment(resources, name) :
                 return resource
     fail("Deployment not found for " + name + ". Found: " + ", ".join(names))
 
+
+# Resolve agentgateway namespace
+agw_namespace = settings.get("agentgateway_installation_namespace")
+if not agw_namespace:
+    agw_namespace = settings.get("helm_installation_namespace")
+
 def get_resources() :
-    return decode_yaml_stream(str(local(get_resources_cmd, quiet = True)))
+    # Get kgateway resources
+    kgateway_yaml = str(local(get_resources_cmd, quiet = True))
+    res = decode_yaml_stream(kgateway_yaml)
+
+    # Get agentgateway resources if enabled
+    if "agentgateway" in settings["enabled_providers"]:
+        agw_cmd = "{0} -n {1} template agentgateway install/helm/agentgateway/ --set controller.image.pullPolicy='Never' --set controller.image.registry=ghcr.io/kgateway-dev --set controller.image.tag='{2}'".format(
+            helm_cmd, agw_namespace, image_tag)
+        for f in settings.get("helm_values_files") :
+            agw_cmd = agw_cmd + " --values=" + f
+        for f in settings.get("agentgateway_values_files", []) :
+            agw_cmd = agw_cmd + " --values=" + f
+        
+        agw_yaml = str(local(agw_cmd, quiet = True))
+        res.extend(decode_yaml_stream(agw_yaml))
+    
+    return res
 
 resources = get_resources()
 
@@ -174,10 +199,19 @@ def get_port_forwards(provider):
     for pf in provider.get("port_forwards", []) :
         if type(pf) == "int" :
             port_forwards.append("{0}:{0}".format(pf))
+        elif type(pf) == "string":
+            port_forwards.append(pf)
+            
     # Ensure the debug port is accessible
     debug_port = provider.get("debug_port")
     if debug_port:
-        if debug_port not in provider.get("port_forwards", []) :
+        # Check if the port is already in port_forwards
+        port_exists = False
+        for pf in port_forwards:
+             if str(debug_port) in pf:
+                 port_exists = True
+                 break
+        if not port_exists:
             port_forwards.append("{0}:{0}".format(debug_port))
     return port_forwards
 
@@ -198,9 +232,14 @@ def enable_provider(provider):
         provider,
     )
 
-    deployment = get_deployment(resources, settings.get("helm_installation_name"))
-    # set the correct namespace
-    deployment["metadata"]["namespace"] = settings.get("helm_installation_namespace")
+    deployment_name = provider.get("deployment_name", provider.get("label"))
+    deployment = get_deployment(resources, deployment_name)
+    
+    # Set namespace: kgateway uses helm_settings, agentgateway uses agw_namespace
+    if label == "kgateway":
+         deployment["metadata"]["namespace"] = settings.get("helm_installation_namespace")
+    elif label == "agentgateway":
+         deployment["metadata"]["namespace"] = agw_namespace
 
     if provider.get("live_reload_deps") :
         # Overwrite the deployment image name with our custom one
@@ -219,8 +258,10 @@ def enable_provider(provider):
     resource_deps = []
     if provider.get("live_reload_deps") :
         resource_deps = [label + "_binary"]
-    if not kgateway_installed :
+    if not kgateway_installed and label == "kgateway":
         resource_deps = [settings.get("helm_installation_name")]
+    if label == "agentgateway":
+         resource_deps.append("agentgateway_helm")
 
     # Create and manage the tweaked deployment
     # Ref: https://docs.tilt.dev/api.html#api.k8s_resource
@@ -232,38 +273,95 @@ def enable_provider(provider):
         labels = [label, "controllers"],
         resource_deps = resource_deps,
     )
+    
+# Generic Helm Installer
+def install_chart(name, namespace, chart_name, crd_chart_name, specific_values_key, image_prefix="", pre_cmd="", resource_deps=[]):
+    install_cmd = pre_cmd
+    
+    # Install CRDs first
+    if crd_chart_name:
+        install_cmd += "{0} upgrade --install -n {1} --create-namespace {2} install/helm/{2} ; ".format(helm_cmd, namespace, crd_chart_name)
+    
+    # Main Chart with Image flags
+    install_cmd += "{0} upgrade --install -n {1} --create-namespace {2} install/helm/{3}/ ".format(helm_cmd, namespace, name, chart_name)
+    install_cmd += "--set {0}image.pullPolicy='Never' --set {0}image.registry=ghcr.io/kgateway-dev --set {0}image.tag='{1}' ".format(image_prefix, image_tag)
+    
+    # Values Files (Common)
+    for f in settings.get("helm_values_files", []):
+        install_cmd += "--values=" + f + " "
+        
+    # Values Files (Specific)
+    for f in settings.get(specific_values_key, []):
+        install_cmd += "--values=" + f + " "
+        
+    # Helm Flags (Common)
+    for key, value in settings.get("helm_flags", {}).items():
+        escaped_value = _shell_escape_single_quotes(value)
+        install_cmd += "--set {0}='{1}' ".format(key, escaped_value)
+
+    local_resource(
+        name = name + "_helm",
+        cmd = ["bash", "-c", install_cmd],
+        auto_init = True,
+        trigger_mode = TRIGGER_MODE_MANUAL,
+        labels = [name],
+        resource_deps = resource_deps
+    )
+    
+    cmd_button(
+        name="install-" + name,
+        text="Install / Upgrade " + name,
+        resource=name + "_helm",
+        argv = ["sh", "-c", install_cmd],
+        icon_name='deployed_code'
+    )
+
+# Shared resource for Gateway API CRDs
+def install_gateway_api_crds():
+    install_cmd = "kubectl get crd gateways.gateway.networking.k8s.io &> /dev/null || { kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml; } ;"
+    
+    local_resource(
+        name = "gateway_api_crds",
+        cmd = ["bash", "-c", install_cmd],
+        auto_init = True,
+        trigger_mode = TRIGGER_MODE_MANUAL,
+        labels = ["crds"]
+    )
+    
+install_gateway_api_crds()
+
+def install_agentgateway():
+    if "agentgateway" not in settings["enabled_providers"]:
+        return
+        
+    install_chart(
+        name="agentgateway",
+        namespace=agw_namespace,
+        chart_name="agentgateway",
+        crd_chart_name="agentgateway-crds",
+        specific_values_key="agentgateway_values_files",
+        image_prefix="controller.",
+        resource_deps=["gateway_api_crds"] # Depends on shared CRDs, not kgateway_helm
+    )
 
 def enable_providers():
     for provider in settings["enabled_providers"] :
         enable_provider(settings["providers"][provider])
- 
-def install_kgateway():
-    if not kgateway_installed :
-        install_helm_cmd = """
-            kubectl get crd gateways.gateway.networking.k8s.io &> /dev/null || {{ kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml; }} ;
-            {0} upgrade --install -n {1} --create-namespace kgateway-crds install/helm/kgateway-crds ;
-            {0} upgrade --install -n {1} --create-namespace {2} install/helm/kgateway/ {3}""".format(
-                helm_cmd, 
-                settings.get("helm_installation_namespace"), 
-                settings.get("helm_installation_name"), 
-                helm_args
-            )
-        local_resource(
-            name = settings.get("helm_installation_name") + "_helm",
-            cmd = ["bash", "-c", install_helm_cmd],
-            auto_init = True,
-            trigger_mode = TRIGGER_MODE_MANUAL,
-            labels = [settings.get("helm_installation_name")],
-        )
 
-        cmd_button(
-            name="install-kgateway",
-            text="Install / Upgrade Kgateway",
-            resource=settings.get("helm_installation_name"),
-            # location=location.NAV,
-            argv = ["sh", "-c", install_helm_cmd],
-            icon_name='deployed_code')
-        enable_providers()
+def install_kgateway():
+    if "kgateway" not in settings["enabled_providers"]:
+        return
+
+    if not kgateway_installed :
+        install_chart(
+            name=settings.get("helm_installation_name"),
+            namespace=settings.get("helm_installation_namespace"),
+            chart_name="kgateway",
+            crd_chart_name="kgateway-crds",
+            specific_values_key="kgateway_values_files",
+            image_prefix="",
+            resource_deps=["gateway_api_crds"] # Depends on shared CRDs
+        )
 
 
 def validate_registry() :
@@ -278,6 +376,6 @@ def install_metallb():
 
 validate_registry()
 install_kgateway()
+install_agentgateway()
 install_metallb()
-if kgateway_installed :
-    enable_providers()
+enable_providers()

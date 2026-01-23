@@ -1,11 +1,20 @@
 helm_installation_name: kgateway
 
-# Add your custom helm value files here
+# Add your custom common helm value files here
 helm_values_files:
   - ./test/e2e/tests/manifests/common-recommendations.yaml
+
+# Kgateway-specific values files
+kgateway_values_files: []
+
+# AgentGateway-specific values files
+agentgateway_values_files: []
   
 
 helm_installation_namespace: kgateway-system
+
+# Optional: Defaults to helm_installation_namespace if not set
+# agentgateway_installation_namespace: agentgateway-system
 
 # Inline Helm --set flags (key: value format)
 helm_flags: {}
@@ -13,6 +22,7 @@ helm_flags: {}
 
 enabled_providers:
   - kgateway
+  - agentgateway
 
 metal_lb: false
 
@@ -60,3 +70,18 @@ providers:
       - 9092
       - 9095
       #- 50100
+
+  agentgateway:
+    context: _output/pkg/kgateway
+    image: cr.agentgateway.dev/controller
+    live_reload_deps:
+      - pkg
+      - internal
+    label: agentgateway
+    build_binary: make -B kgateway
+    binary_name: kgateway-linux-$ARCH
+    debug_port: 50101
+    port_forwards:
+      - "9094:9092"
+      - 9093
+      - 9978

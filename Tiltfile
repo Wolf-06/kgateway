@@ -116,6 +116,10 @@ agw_namespace = settings.get("agentgateway_installation_namespace")
 if not agw_namespace:
     agw_namespace = settings.get("helm_installation_namespace")
 
+agentgateway_installed_cmd = "{0} -n {1} status agentgateway || true".format(helm_cmd, agw_namespace)
+agentgateway_status = str(local(agentgateway_installed_cmd, quiet = True))
+agentgateway_installed = "STATUS: deployed" in agentgateway_status
+
 def get_resources() :
     # Get kgateway resources
     kgateway_yaml = str(local(get_resources_cmd, quiet = True))
@@ -129,6 +133,10 @@ def get_resources() :
             agw_cmd = agw_cmd + " --values=" + f
         for f in settings.get("agentgateway_values_files", []) :
             agw_cmd = agw_cmd + " --values=" + f
+        # Apply helm_flags so templating matches installation behavior
+        for key, value in settings.get("helm_flags", {}).items():
+            escaped_value = _shell_escape_single_quotes(value)
+            agw_cmd = agw_cmd + " --set {0}='{1}'".format(key, escaped_value)
         
         agw_yaml = str(local(agw_cmd, quiet = True))
         res.extend(decode_yaml_stream(agw_yaml))
@@ -205,12 +213,19 @@ def get_port_forwards(provider):
     # Ensure the debug port is accessible
     debug_port = provider.get("debug_port")
     if debug_port:
-        # Check if the port is already in port_forwards
+        # Check if the debug port is already in port_forwards
         port_exists = False
         for pf in port_forwards:
-             if str(debug_port) in pf:
-                 port_exists = True
-                 break
+            # port forwards are normalized above to strings like "host:container" or "port:port"
+            pf_str = str(pf)
+            parts = pf_str.split(":")
+            # consider at most the first two segments as host/container ports
+            for part in parts[:2]:
+                if part.isdigit() and int(part) == int(debug_port):
+                    port_exists = True
+                    break
+            if port_exists:
+                break
         if not port_exists:
             port_forwards.append("{0}:{0}".format(debug_port))
     return port_forwards
@@ -232,7 +247,12 @@ def enable_provider(provider):
         provider,
     )
 
-    deployment_name = provider.get("deployment_name", provider.get("label"))
+    # For kgateway, derive deployment name from helm release name to handle custom names
+    # For agentgateway, use label as default
+    if label == "kgateway":
+        deployment_name = provider.get("deployment_name", settings.get("helm_installation_name"))
+    else:
+        deployment_name = provider.get("deployment_name", provider.get("label"))
     deployment = get_deployment(resources, deployment_name)
     
     # Set namespace: kgateway uses helm_settings, agentgateway uses agw_namespace
@@ -256,12 +276,12 @@ def enable_provider(provider):
     k8s_yaml(encode_yaml(deployment), allow_duplicates = True)
 
     resource_deps = []
-    if provider.get("live_reload_deps") :
-        resource_deps = [label + "_binary"]
+    if provider.get("live_reload_deps"):
+        resource_deps.append(label + "_binary")
     if not kgateway_installed and label == "kgateway":
-        resource_deps = [settings.get("helm_installation_name")]
+        resource_deps.append(settings.get("helm_installation_name") + "_helm")
     if label == "agentgateway":
-         resource_deps.append("agentgateway_helm")
+        resource_deps.append("agentgateway_helm")
 
     # Create and manage the tweaked deployment
     # Ref: https://docs.tilt.dev/api.html#api.k8s_resource
@@ -345,8 +365,12 @@ def install_agentgateway():
     )
 
 def enable_providers():
-    for provider in settings["enabled_providers"] :
-        enable_provider(settings["providers"][provider])
+    for provider_name in settings["enabled_providers"] :
+        if provider_name == "kgateway" and not kgateway_installed:
+            continue
+        if provider_name == "agentgateway" and not agentgateway_installed:
+            continue
+        enable_provider(settings["providers"][provider_name])
 
 def install_kgateway():
     if "kgateway" not in settings["enabled_providers"]:

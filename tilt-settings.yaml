@@ -22,7 +22,7 @@ helm_flags: {}
 
 enabled_providers:
   - kgateway
-  - agentgateway
+#  - agentgateway
 
 metal_lb: false
 
@@ -83,7 +83,7 @@ providers:
     #build_binary: make -B kgateway GCFLAGS="all=-N -l" LDFLAGS=""
     build_binary: make -B kgateway
     binary_name: kgateway-linux-$ARCH
-    debug_port: 50101
+    # debug_port: 50101
     port_forwards:
       - "9094:9092"
       - 9093

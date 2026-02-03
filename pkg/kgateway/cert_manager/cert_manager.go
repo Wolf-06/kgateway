@@ -177,18 +177,22 @@ func EnsureCertificateSecret(ctx context.Context, cli kube.Client, xdsServiceNam
 	namespace := namespaces.GetPodNamespace()
 	secretName := xds.TLSSecretName
 
+	// Build expected DNS names for validation
+	expectedDNSNames := buildDNSNames(xdsServiceName, namespace)
+
 	//check if the secret already exists
 	var isUpdate bool
 	existingSecret, err := cli.Kube().CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err == nil {
 		isUpdate = true
-		// Check if the certificate has expired
-		if !isCertificateExpired(existingSecret.Data["tls.crt"]) {
+		// Validate the existing certificate thoroughly
+		if err := validateCertificate(existingSecret.Data["tls.crt"], existingSecret.Data["tls.key"], expectedDNSNames); err != nil {
+			slog.Info("xDS TLS certificate validation failed, regenerating", "secret", secretName, "namespace", namespace, "reason", err.Error())
+			// Fall through to regenerate
+		} else {
 			slog.Info("xDS TLS secret already exists and is valid, skipping generation", "secret", secretName, "namespace", namespace)
 			return existingSecret.Data["tls.crt"], existingSecret.Data["tls.key"], nil
 		}
-		slog.Info("xDS TLS certificate has expired, regenerating", "secret", secretName, "namespace", namespace)
-		// Fall through to regenerate
 	} else if !apierrors.IsNotFound(err) {
 		return nil, nil, fmt.Errorf("failed to check for existing secret: %w", err)
 	}
@@ -249,30 +253,91 @@ func EnsureCertificateSecret(ctx context.Context, cli kube.Client, xdsServiceNam
 	return serverCert, serverKey, nil
 }
 
-// isCertificateExpired checks if the PEM-encoded certificate has expired.
-func isCertificateExpired(certPEM []byte) bool {
-	block, _ := pem.Decode(certPEM)
-	if block == nil {
-		slog.Warn("failed to decode PEM block, treating as expired")
-		return true
+// validateCertificate performs comprehensive validation of the certificate.
+// It checks:
+// 1. PEM decoding is successful
+// 2. Certificate can be parsed
+// 3. Certificate is not expired (with 7-day grace period)
+// 4. Certificate has the expected DNS SANs
+// 5. Private key matches the certificate
+func validateCertificate(certPEM, keyPEM []byte, expectedDNSNames []string) error {
+	// Validate certificate PEM
+	certBlock, _ := pem.Decode(certPEM)
+	if certBlock == nil {
+		return fmt.Errorf("failed to decode certificate PEM block")
 	}
 
-	cert, err := x509.ParseCertificate(block.Bytes)
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
-		slog.Warn("failed to parse certificate, treating as expired", "error", err)
-		return true
+		return fmt.Errorf("failed to parse certificate: %w", err)
 	}
 
-	// Consider expired if past NotAfter or within 7 days of expiration
+	// Check expiration with 7-day grace period
 	gracePeriod := 7 * 24 * time.Hour
 	expirationThreshold := time.Now().Add(gracePeriod)
-
 	if cert.NotAfter.Before(expirationThreshold) {
-		slog.Info("certificate is expired or expiring soon", "not_after", cert.NotAfter, "threshold", expirationThreshold)
-		return true
+		return fmt.Errorf("certificate expired or expiring soon: notAfter=%v, threshold=%v", cert.NotAfter, expirationThreshold)
 	}
 
-	return false
+	// Check NotBefore (certificate should be valid now)
+	if cert.NotBefore.After(time.Now()) {
+		return fmt.Errorf("certificate not yet valid: notBefore=%v", cert.NotBefore)
+	}
+
+	// Validate DNS SANs - ensure all expected names are present
+	dnsNameSet := make(map[string]bool)
+	for _, name := range cert.DNSNames {
+		dnsNameSet[name] = true
+	}
+	for _, expectedName := range expectedDNSNames {
+		if !dnsNameSet[expectedName] {
+			return fmt.Errorf("certificate missing expected DNS SAN: %s", expectedName)
+		}
+	}
+
+	// Validate private key PEM
+	keyBlock, _ := pem.Decode(keyPEM)
+	if keyBlock == nil {
+		return fmt.Errorf("failed to decode private key PEM block")
+	}
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	// Verify the private key matches the certificate's public key
+	pubKey, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("certificate public key is not RSA")
+	}
+	if privateKey.N.Cmp(pubKey.N) != 0 {
+		return fmt.Errorf("private key does not match certificate public key")
+	}
+
+	return nil
+}
+
+// buildDNSNames returns the expected DNS names for the xDS service certificate
+func buildDNSNames(serviceName, namespace string) []string {
+	return []string{
+		serviceName,
+		fmt.Sprintf("%s.%s", serviceName, namespace),
+		fmt.Sprintf("%s.%s.svc", serviceName, namespace),
+		fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
+	}
+}
+
+// generateRandomSerialNumber generates a cryptographically random 128-bit serial number
+// as recommended by RFC 5280 for certificate serial numbers.
+func generateRandomSerialNumber() (*big.Int, error) {
+	// Generate 128-bit random number (16 bytes)
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random serial number: %w", err)
+	}
+	return serialNumber, nil
 }
 
 // generateCA generates a CA certificate and private key
@@ -282,8 +347,14 @@ func generateCA() (certPEM, keyPEM []byte, err error) {
 		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
+	// Generate cryptographically random serial number
+	serialNumber, err := generateRandomSerialNumber()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	template := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName: "kgateway-ca",
 		},
@@ -345,15 +416,16 @@ func generateServerCert(caCertPEM, caKeyPEM []byte, serviceName, namespace strin
 		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	dnsNames := []string{
-		serviceName,
-		fmt.Sprintf("%s.%s", serviceName, namespace),
-		fmt.Sprintf("%s.%s.svc", serviceName, namespace),
-		fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
+	dnsNames := buildDNSNames(serviceName, namespace)
+
+	// Generate cryptographically random serial number
+	serialNumber, err := generateRandomSerialNumber()
+	if err != nil {
+		return nil, nil, err
 	}
 
 	template := &x509.Certificate{
-		SerialNumber: big.NewInt(2),
+		SerialNumber: serialNumber,
 		Subject:      pkix.Name{CommonName: serviceName},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().Add(time.Duration(CertValidityDays) * time.Hour * 24),

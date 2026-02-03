@@ -1,0 +1,10 @@
+# Test values for E2E tests
+# This file disables xDS TLS to avoid certificate bootstrapping issues in test environments.
+# Usage: helm install kgateway ./install/helm/kgateway -f test/e2e/tests/manifests/test-values.yaml
+
+controller:
+  xds:
+    tls:
+      # Disable TLS for E2E tests to avoid certificate bootstrapping issues.
+      # In production, this defaults to 'true' for secure xDS communication.
+      enabled: false

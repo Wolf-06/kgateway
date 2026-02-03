@@ -18,6 +18,11 @@ var (
 
 	// ControlPlaneTLSManifestPath returns the path to a manifest with TLS enabled for xDS communication
 	ControlPlaneTLSManifestPath = ManifestPath("controlplane-tls-helm.yaml")
+
+	// TestValuesManifestPath returns the path to a manifest with TLS disabled for E2E tests.
+	// Use this when running tests in environments where the xDS TLS certificate secret
+	// cannot be bootstrapped (e.g., test namespaces without proper RBAC).
+	TestValuesManifestPath = ManifestPath("test-values.yaml")
 )
 
 // ManifestPath returns the absolute path to a manifest file.

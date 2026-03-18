@@ -200,6 +200,22 @@ func roleFromRequest(r *envoy_service_discovery_v3.DiscoveryRequest) string {
 	return r.GetNode().GetMetadata().GetFields()[xds.RoleKey].GetStringValue()
 }
 
+func normalizeGatewayRole(originalRole, namespace string, labels map[string]string) string {
+	if labels == nil {
+		return originalRole
+	}
+
+	gwName := labels[wellknown.GatewayNameAnnotation]
+	if gwName == "" {
+		gwName = labels[wellknown.GatewayNameLabel]
+	}
+	if gwName == "" {
+		return originalRole
+	}
+
+	return xds.OwnerNamespaceNameID(wellknown.GatewayApiProxyValue, namespace, gwName)
+}
+
 func (x *callbacksCollection) add(sid int64, r *envoy_service_discovery_v3.DiscoveryRequest, peer peerInfo) (string, bool, error) {
 	var pod *LocalityPod
 	// see if user wants to use pod locality info; this is only possible when podRef is set in getPeerInfo
@@ -223,14 +239,7 @@ func (x *callbacksCollection) add(sid int64, r *envoy_service_discovery_v3.Disco
 				locality = pod.Locality
 				ns = pod.Namespace
 				labels = pod.AugmentedLabels
-				// Normalize role to the gateway owner derived from pod labels so stream and cache keys align.
-				gwName := labels[wellknown.GatewayNameAnnotation]
-				if gwName == "" {
-					gwName = labels[wellknown.GatewayNameLabel]
-				}
-				if gwName != "" {
-					peer.role = xds.OwnerNamespaceNameID(wellknown.GatewayApiProxyValue, ns, gwName)
-				}
+				peer.role = normalizeGatewayRole(peer.role, ns, labels)
 			}
 		}
 		x.logger.Debug("adding xds client", "locality", locality, "ns", ns, "labels", labels, "role", peer.role)
@@ -354,16 +363,7 @@ func (x *callbacksCollection) fetchRequest(_ context.Context, r *envoy_service_d
 	}
 
 	role := roleFromRequest(r)
-	// Keep fetch requests consistent with stream requests by using label-derived gateway ownership when present.
-	if pod.AugmentedLabels != nil {
-		gwName := pod.AugmentedLabels[wellknown.GatewayNameAnnotation]
-		if gwName == "" {
-			gwName = pod.AugmentedLabels[wellknown.GatewayNameLabel]
-		}
-		if gwName != "" {
-			role = xds.OwnerNamespaceNameID(wellknown.GatewayApiProxyValue, pod.Namespace, gwName)
-		}
-	}
+	role = normalizeGatewayRole(role, pod.Namespace, pod.AugmentedLabels)
 
 	ucc := ir.NewUniqlyConnectedClient(role, pod.Namespace, pod.AugmentedLabels, pod.Locality)
 

@@ -121,7 +121,8 @@ func (s *testingSuite) TestLongGatewayNameRouting() {
 	s.T().Logf("Waiting for Envoy data plane to bind port 8080 at %s...", s.longGateway.Address)
 	gomega.Eventually(func() error {
 		addr := s.longGateway.Address
-		if !strings.Contains(addr, ":") {
+		if _, _, err := net.SplitHostPort(addr); err != nil {
+			// addr does not include a valid port; assume it's just a host and add the default port.
 			addr = net.JoinHostPort(addr, "8080")
 		}
 		conn, err := net.DialTimeout("tcp", addr, time.Second)
